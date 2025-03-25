@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Fan & Servo Control</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            background-color: #f0f2f5;
+        }
+        .header {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .connection-status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+        .connected {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .disconnected {
+            background-color: #f44336;
+            color: white;
+        }
+        .control-panel {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        .status {
+            margin-top: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+        .error {
+            color: #f44336;
+            margin-top: 10px;
+            display: none;
+            padding: 10px;
+            background-color: #ffebee;
+            border-radius: 4px;
+        }
+        .servo-control {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .servo-group {
+            margin-bottom: 20px;
+        }
+        .servo-group:last-child {
+            margin-bottom: 0;
+        }
+        .servo-name {
+            font-weight: bold;
+            color: #1a73e8;
+            margin-bottom: 10px;
+        }
+        .servo-slider {
+            width: 80%;
+            margin: 20px auto;
+            -webkit-appearance: none;
+            height: 8px;
+            border-radius: 4px;
+            background: #ddd;
+            outline: none;
+        }
+        .servo-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #2196F3;
+            cursor: pointer;
+        }
+        .angle-display {
+            font-size: 1.2em;
+            margin: 10px 0;
+            color: #333;
+        }
+        .control-group {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        h1 {
+            color: #1a73e8;
+            margin-bottom: 10px;
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>ESP32 Fan & Servo Control</h1>
+        <div id="connectionStatus" class="connection-status disconnected">Disconnected</div>
+    </div>
+    
+    <div class="control-panel">
+        <div class="control-group">
+            <h2>Fan Control</h2>
+            <label class="switch">
+                <input type="checkbox" id="fanSwitch">
+                <span class="slider"></span>
+            </label>
+            <div id="fanStatus" class="status">Status: OFF</div>
+            <div id="fanError" class="error"></div>
+        </div>
+
+        <div class="control-group">
+            <h2>Servo Controls</h2>
+            <div class="servo-control">
+                <div class="servo-group">
+                    <div class="servo-name">Door Servo</div>
+                    <input type="range" id="doorServoSlider" class="servo-slider" 
+                           min="0" max="180" value="90" step="1">
+                    <div class="angle-display">Angle: <span id="doorAngleValue">90</span>°</div>
+                    <div id="doorServoError" class="error"></div>
+                </div>
+                <div class="servo-group">
+                    <div class="servo-name">Curtain Servo</div>
+                    <input type="range" id="curtainServoSlider" class="servo-slider" 
+                           min="0" max="180" value="90" step="1">
+                    <div class="angle-display">Angle: <span id="curtainAngleValue">90</span>°</div>
+                    <div id="curtainServoError" class="error"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fanSwitch = document.getElementById('fanSwitch');
+        const fanStatus = document.getElementById('fanStatus');
+        const fanError = document.getElementById('fanError');
+        const doorServoSlider = document.getElementById('doorServoSlider');
+        const doorAngleValue = document.getElementById('doorAngleValue');
+        const doorServoError = document.getElementById('doorServoError');
+        const curtainServoSlider = document.getElementById('curtainServoSlider');
+        const curtainAngleValue = document.getElementById('curtainAngleValue');
+        const curtainServoError = document.getElementById('curtainServoError');
+        const connectionStatus = document.getElementById('connectionStatus');
+
+        // Check connection status
+        async function checkConnection() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                if (data.mqttConnected) {
+                    connectionStatus.textContent = 'Connected';
+                    connectionStatus.className = 'connection-status connected';
+                } else {
+                    connectionStatus.textContent = 'Disconnected';
+                    connectionStatus.className = 'connection-status disconnected';
+                }
+            } catch (error) {
+                connectionStatus.textContent = 'Disconnected';
+                connectionStatus.className = 'connection-status disconnected';
+            }
+        }
+
+        // Check connection status every 5 seconds
+        setInterval(checkConnection, 5000);
+        checkConnection(); // Initial check
+
+        // Helper function to show error
+        function showError(element, message) {
+            element.textContent = message;
+            element.style.display = 'block';
+            setTimeout(() => {
+                element.style.display = 'none';
+            }, 5000);
+        }
+
+        // Fan control
+        fanSwitch.addEventListener('change', async () => {
+            const state = fanSwitch.checked;
+            try {
+                const response = await fetch('/api/device/fan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ state })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    fanStatus.textContent = `Status: ${state ? 'ON' : 'OFF'}`;
+                    fanError.style.display = 'none';
+                } else {
+                    showError(fanError, data.error || 'Failed to update fan state');
+                    fanSwitch.checked = !state;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError(fanError, 'Connection error. Please try again.');
+                fanSwitch.checked = !state;
+            }
+        });
+
+        // Door Servo control
+        doorServoSlider.addEventListener('input', () => {
+            doorAngleValue.textContent = doorServoSlider.value;
+        });
+
+        doorServoSlider.addEventListener('change', async () => {
+            const angle = doorServoSlider.value;
+            try {
+                const response = await fetch('/api/device/servo/door', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ angle })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    doorServoError.style.display = 'none';
+                } else {
+                    showError(doorServoError, data.error || 'Failed to update door servo angle');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError(doorServoError, 'Connection error. Please try again.');
+            }
+        });
+
+        // Curtain Servo control
+        curtainServoSlider.addEventListener('input', () => {
+            curtainAngleValue.textContent = curtainServoSlider.value;
+        });
+
+        curtainServoSlider.addEventListener('change', async () => {
+            const angle = curtainServoSlider.value;
+            try {
+                const response = await fetch('/api/device/servo/curtain', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ angle })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    curtainServoError.style.display = 'none';
+                } else {
+                    showError(curtainServoError, data.error || 'Failed to update curtain servo angle');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError(curtainServoError, 'Connection error. Please try again.');
+            }
+        });
+    </script>
+</body>
+</html> 
