@@ -23,6 +23,8 @@ const mqttConfig = {
         fan: process.env.MQTT_TOPIC_FAN,
         doorServo: process.env.MQTT_TOPIC_DOOR_SERVO,
         curtainServo: process.env.MQTT_TOPIC_CURTAIN_SERVO,
+        roomLight: process.env.MQTT_TOPIC_ROOM_LIGHT,
+        readingLamp: process.env.MQTT_TOPIC_READING_LAMP,
         status: process.env.MQTT_TOPIC_STATUS,
     },
 };
@@ -70,7 +72,7 @@ function connectMQTT() {
     });
 }
 
-// Device control endpoints
+// Fan control endpoint
 app.post('/api/device/fan', (req, res) => {
     if (!mqttClient || !mqttClient.connected) {
         return res.status(503).json({ error: 'MQTT client is not connected' });
@@ -96,57 +98,101 @@ app.post('/api/device/fan', (req, res) => {
     });
 });
 
+// Door servo control endpoint
 app.post('/api/device/servo/door', (req, res) => {
     if (!mqttClient || !mqttClient.connected) {
         return res.status(503).json({ error: 'MQTT client is not connected' });
     }
 
-    const { angle } = req.body;
+    const { command } = req.body;
     
-    if (angle === undefined || angle === null) {
-        return res.status(400).json({ error: 'Angle is required' });
+    if (!command || !['open', 'close'].includes(command)) {
+        return res.status(400).json({ error: 'Command must be either "open" or "close"' });
     }
 
-    const numAngle = Number(angle);
-    if (isNaN(numAngle) || numAngle < 0 || numAngle > 180) {
-        return res.status(400).json({ error: 'Angle must be a number between 0 and 180' });
-    }
-
-    const message = JSON.stringify({ angle: numAngle });
+    const message = JSON.stringify({ command });
     mqttClient.publish(mqttConfig.topics.doorServo, message, { qos: 1 }, (err) => {
         if (err) {
-            console.error('Error publishing door servo angle:', err);
+            console.error('Error publishing door servo command:', err);
             res.status(500).json({ error: 'Failed to control door servo' });
         } else {
-            console.log(`Published door servo angle: ${numAngle}`);
+            console.log(`Published door servo command: ${message}`);
             res.json({ success: true });
         }
     });
 });
 
+// Curtain servo control endpoint
 app.post('/api/device/servo/curtain', (req, res) => {
     if (!mqttClient || !mqttClient.connected) {
         return res.status(503).json({ error: 'MQTT client is not connected' });
     }
 
-    const { angle } = req.body;
+    const { command } = req.body;
     
-    if (angle === undefined || angle === null) {
-        return res.status(400).json({ error: 'Angle is required' });
+    if (!command || !['open', 'close'].includes(command)) {
+        return res.status(400).json({ error: 'Command must be either "open" or "close"' });
     }
 
-    const numAngle = Number(angle);
-    if (isNaN(numAngle) || numAngle < 0 || numAngle > 180) {
-        return res.status(400).json({ error: 'Angle must be a number between 0 and 180' });
-    }
-
-    const message = JSON.stringify({ angle: numAngle });
+    const message = JSON.stringify({ command });
     mqttClient.publish(mqttConfig.topics.curtainServo, message, { qos: 1 }, (err) => {
         if (err) {
-            console.error('Error publishing curtain servo angle:', err);
+            console.error('Error publishing curtain servo command:', err);
             res.status(500).json({ error: 'Failed to control curtain servo' });
         } else {
-            console.log(`Published curtain servo angle: ${numAngle}`);
+            console.log(`Published curtain servo command: ${message}`);
+            res.json({ success: true });
+        }
+    });
+});
+
+// Room light control endpoint
+app.post('/api/device/light/room', (req, res) => {
+    if (!mqttClient || !mqttClient.connected) {
+        return res.status(503).json({ error: 'MQTT client is not connected' });
+    }
+
+    const { state } = req.body;
+    
+    if (state === undefined || state === null) {
+        return res.status(400).json({ error: 'State is required' });
+    }
+
+    const boolState = typeof state === 'string' ? state.toLowerCase() === 'true' : Boolean(state);
+    const message = JSON.stringify({ state: boolState });
+    
+    mqttClient.publish(mqttConfig.topics.roomLight, message, { qos: 1 }, (err) => {
+        if (err) {
+            console.error('Error publishing room light message:', err);
+            res.status(500).json({ error: 'Failed to control room light' });
+        } else {
+            console.log(`Published room light message: ${message}`);
+            res.json({ success: true });
+        }
+    });
+});
+
+// Reading lamp control endpoint
+app.post('/api/device/light/reading', (req, res) => {
+    if (!mqttClient || !mqttClient.connected) {
+        return res.status(503).json({ error: 'MQTT client is not connected' });
+    }
+
+    const { state } = req.body;
+    
+    if (state === undefined || state === null) {
+        return res.status(400).json({ error: 'State is required' });
+    }
+
+    const boolState = typeof state === 'string' ? state.toLowerCase() === 'true' : Boolean(state);
+    const message = JSON.stringify({ state: boolState });
+    
+    mqttClient.publish(mqttConfig.topics.readingLamp, message, { qos: 1 }, (err) => {
+        if (err) {
+            console.error('Error publishing reading lamp message:', err);
+            res.status(500).json({ error: 'Failed to control reading lamp' });
+        } else {
+            console.log(`Published reading lamp message: ${message}`);
             res.json({ success: true });
         }
     });

@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 Fan & Servo Control</title>
+    <title>Smart Home Control Panel</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 800px;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
             text-align: center;
@@ -36,6 +36,12 @@
             color: white;
         }
         .control-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+        .control-group {
             background-color: #fff;
             padding: 20px;
             border-radius: 8px;
@@ -95,50 +101,30 @@
         }
         .servo-control {
             margin-top: 20px;
-            padding: 15px;
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
-        .servo-group {
-            margin-bottom: 20px;
+        .servo-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
         }
-        .servo-group:last-child {
-            margin-bottom: 0;
-        }
-        .servo-name {
-            font-weight: bold;
-            color: #1a73e8;
-            margin-bottom: 10px;
-        }
-        .servo-slider {
-            width: 80%;
-            margin: 20px auto;
-            -webkit-appearance: none;
-            height: 8px;
+        .servo-button {
+            padding: 8px 16px;
+            border: none;
             border-radius: 4px;
-            background: #ddd;
-            outline: none;
-        }
-        .servo-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #2196F3;
+            background-color: #2196F3;
+            color: white;
             cursor: pointer;
+            transition: background-color 0.3s;
         }
-        .angle-display {
+        .servo-button:hover {
+            background-color: #1976D2;
+        }
+        .device-title {
             font-size: 1.2em;
-            margin: 10px 0;
-            color: #333;
-        }
-        .control-group {
-            margin-bottom: 30px;
-            padding: 20px;
-            background-color: #f8f9fa;
-            border-radius: 8px;
+            color: #1a73e8;
+            margin-bottom: 15px;
+            font-weight: bold;
         }
         h1 {
             color: #1a73e8;
@@ -148,17 +134,24 @@
             color: #333;
             margin-bottom: 20px;
         }
+        .section-title {
+            color: #1a73e8;
+            text-align: left;
+            margin: 20px 0;
+            padding: 0 20px;
+        }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>ESP32 Fan & Servo Control</h1>
+        <h1>Smart Home Control Panel</h1>
         <div id="connectionStatus" class="connection-status disconnected">Disconnected</div>
     </div>
-    
+
+    <h2 class="section-title">Climate Control</h2>
     <div class="control-panel">
         <div class="control-group">
-            <h2>Fan Control</h2>
+            <div class="device-title">Fan Control</div>
             <label class="switch">
                 <input type="checkbox" id="fanSwitch">
                 <span class="slider"></span>
@@ -166,38 +159,63 @@
             <div id="fanStatus" class="status">Status: OFF</div>
             <div id="fanError" class="error"></div>
         </div>
+    </div>
+
+    <h2 class="section-title">Window Controls</h2>
+    <div class="control-panel">
+        <div class="control-group">
+            <div class="device-title">Door Control</div>
+            <div class="servo-buttons">
+                <button class="servo-button" onclick="controlDoor('open')">Open Door</button>
+                <button class="servo-button" onclick="controlDoor('close')">Close Door</button>
+            </div>
+            <div id="doorError" class="error"></div>
+        </div>
 
         <div class="control-group">
-            <h2>Servo Controls</h2>
-            <div class="servo-control">
-                <div class="servo-group">
-                    <div class="servo-name">Door Servo</div>
-                    <input type="range" id="doorServoSlider" class="servo-slider" 
-                           min="0" max="180" value="90" step="1">
-                    <div class="angle-display">Angle: <span id="doorAngleValue">90</span>°</div>
-                    <div id="doorServoError" class="error"></div>
-                </div>
-                <div class="servo-group">
-                    <div class="servo-name">Curtain Servo</div>
-                    <input type="range" id="curtainServoSlider" class="servo-slider" 
-                           min="0" max="180" value="90" step="1">
-                    <div class="angle-display">Angle: <span id="curtainAngleValue">90</span>°</div>
-                    <div id="curtainServoError" class="error"></div>
-                </div>
+            <div class="device-title">Curtain Control</div>
+            <div class="servo-buttons">
+                <button class="servo-button" onclick="controlCurtain('open')">Open Curtain</button>
+                <button class="servo-button" onclick="controlCurtain('close')">Close Curtain</button>
             </div>
+            <div id="curtainError" class="error"></div>
+        </div>
+    </div>
+
+    <h2 class="section-title">Lighting</h2>
+    <div class="control-panel">
+        <div class="control-group">
+            <div class="device-title">Room Light</div>
+            <label class="switch">
+                <input type="checkbox" id="roomLightSwitch">
+                <span class="slider"></span>
+            </label>
+            <div id="roomLightStatus" class="status">Status: OFF</div>
+            <div id="roomLightError" class="error"></div>
+        </div>
+
+        <div class="control-group">
+            <div class="device-title">Reading Lamp</div>
+            <label class="switch">
+                <input type="checkbox" id="readingLampSwitch">
+                <span class="slider"></span>
+            </label>
+            <div id="readingLampStatus" class="status">Status: OFF</div>
+            <div id="readingLampError" class="error"></div>
         </div>
     </div>
 
     <script>
+        // DOM Elements
         const fanSwitch = document.getElementById('fanSwitch');
         const fanStatus = document.getElementById('fanStatus');
         const fanError = document.getElementById('fanError');
-        const doorServoSlider = document.getElementById('doorServoSlider');
-        const doorAngleValue = document.getElementById('doorAngleValue');
-        const doorServoError = document.getElementById('doorServoError');
-        const curtainServoSlider = document.getElementById('curtainServoSlider');
-        const curtainAngleValue = document.getElementById('curtainAngleValue');
-        const curtainServoError = document.getElementById('curtainServoError');
+        const roomLightSwitch = document.getElementById('roomLightSwitch');
+        const roomLightStatus = document.getElementById('roomLightStatus');
+        const roomLightError = document.getElementById('roomLightError');
+        const readingLampSwitch = document.getElementById('readingLampSwitch');
+        const readingLampStatus = document.getElementById('readingLampStatus');
+        const readingLampError = document.getElementById('readingLampError');
         const connectionStatus = document.getElementById('connectionStatus');
 
         // Check connection status
@@ -258,61 +276,101 @@
             }
         });
 
-        // Door Servo control
-        doorServoSlider.addEventListener('input', () => {
-            doorAngleValue.textContent = doorServoSlider.value;
+        // Room Light control
+        roomLightSwitch.addEventListener('change', async () => {
+            const state = roomLightSwitch.checked;
+            try {
+                const response = await fetch('/api/device/light/room', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ state })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    roomLightStatus.textContent = `Status: ${state ? 'ON' : 'OFF'}`;
+                    roomLightError.style.display = 'none';
+                } else {
+                    showError(roomLightError, data.error || 'Failed to update room light state');
+                    roomLightSwitch.checked = !state;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError(roomLightError, 'Connection error. Please try again.');
+                roomLightSwitch.checked = !state;
+            }
         });
 
-        doorServoSlider.addEventListener('change', async () => {
-            const angle = doorServoSlider.value;
+        // Reading Lamp control
+        readingLampSwitch.addEventListener('change', async () => {
+            const state = readingLampSwitch.checked;
+            try {
+                const response = await fetch('/api/device/light/reading', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ state })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    readingLampStatus.textContent = `Status: ${state ? 'ON' : 'OFF'}`;
+                    readingLampError.style.display = 'none';
+                } else {
+                    showError(readingLampError, data.error || 'Failed to update reading lamp state');
+                    readingLampSwitch.checked = !state;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError(readingLampError, 'Connection error. Please try again.');
+                readingLampSwitch.checked = !state;
+            }
+        });
+
+        // Door control
+        async function controlDoor(command) {
             try {
                 const response = await fetch('/api/device/servo/door', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ angle })
+                    body: JSON.stringify({ command })
                 });
                 
                 const data = await response.json();
-                if (data.success) {
-                    doorServoError.style.display = 'none';
-                } else {
-                    showError(doorServoError, data.error || 'Failed to update door servo angle');
+                if (!data.success) {
+                    showError(document.getElementById('doorError'), data.error || 'Failed to control door');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                showError(doorServoError, 'Connection error. Please try again.');
+                showError(document.getElementById('doorError'), 'Connection error. Please try again.');
             }
-        });
+        }
 
-        // Curtain Servo control
-        curtainServoSlider.addEventListener('input', () => {
-            curtainAngleValue.textContent = curtainServoSlider.value;
-        });
-
-        curtainServoSlider.addEventListener('change', async () => {
-            const angle = curtainServoSlider.value;
+        // Curtain control
+        async function controlCurtain(command) {
             try {
                 const response = await fetch('/api/device/servo/curtain', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ angle })
+                    body: JSON.stringify({ command })
                 });
                 
                 const data = await response.json();
-                if (data.success) {
-                    curtainServoError.style.display = 'none';
-                } else {
-                    showError(curtainServoError, data.error || 'Failed to update curtain servo angle');
+                if (!data.success) {
+                    showError(document.getElementById('curtainError'), data.error || 'Failed to control curtain');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                showError(curtainServoError, 'Connection error. Please try again.');
+                showError(document.getElementById('curtainError'), 'Connection error. Please try again.');
             }
-        });
+        }
     </script>
 </body>
 </html> 
