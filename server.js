@@ -2,7 +2,11 @@ const express = require('express');
 const cors = require('cors');
 const mqtt = require('mqtt');
 const path = require('path');
+const { dialogflow } = require('actions-on-google');
 require('dotenv').config();
+
+// Initialize Dialogflow app
+const dialogflowApp = dialogflow({ debug: true });
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -71,6 +75,78 @@ function connectMQTT() {
         console.log(`Received message on ${topic}: ${message.toString()}`);
     });
 }
+
+// Dialogflow webhook endpoint
+app.post('/api/fulfillment', dialogflowApp);
+
+// Dialogflow intents
+dialogflowApp.intent('devicecontrol', async (conv, { devicename, devicestatus }) => {
+    if (!mqttClient || !mqttClient.connected) {
+        conv.ask("Sorry, the smart home system is not connected right now.");
+        return;
+    }
+
+    try {
+        let topic, message;
+
+        switch(devicename.toLowerCase()) {
+            case 'fan':
+                topic = mqttConfig.topics.fan;
+                message = JSON.stringify({ state: devicestatus.toLowerCase() === 'on' ? 'on' : 'off' });
+                break;
+            case 'room light':
+            case 'room':
+                topic = mqttConfig.topics.roomLight;
+                message = JSON.stringify({ state: devicestatus.toLowerCase() === 'on' ? 'on' : 'off' });
+                break;
+            case 'reading light':
+            case 'lamp':
+                topic = mqttConfig.topics.readingLamp;
+                message = JSON.stringify({ state: devicestatus.toLowerCase() === 'on' ? 'on' : 'off' });
+                break;
+            case 'door':
+                topic = mqttConfig.topics.doorServo;
+                message = JSON.stringify({ command: devicestatus.toLowerCase() === 'open' ? 'open' : 'close' });
+                break;
+            case 'curtain':
+                topic = mqttConfig.topics.curtainServo;
+                message = JSON.stringify({ command: devicestatus.toLowerCase() === 'open' ? 'open' : 'close' });
+                break;
+            default:
+                conv.ask(`I don't know how to control the ${devicename}`);
+                return;
+        }
+
+        await new Promise((resolve, reject) => {
+            mqttClient.publish(topic, message, { qos: 1 }, (err) => {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
+
+        // Confirm the action
+        if (devicename === 'door' || devicename === 'curtain') {
+            conv.ask(`I've ${devicestatus} the ${devicename}`);
+        } else {
+            conv.ask(`I've turned ${devicestatus} the ${devicename}`);
+        }
+
+    } catch (error) {
+        console.error('Error controlling device:', error);
+        conv.ask("Sorry, I couldn't control the device. Please try again.");
+    }
+});
+
+// Device status intent
+dialogflowApp.intent('devicestatus', (conv, { devicename }) => {
+    if (!mqttClient || !mqttClient.connected) {
+        conv.ask("Sorry, the smart home system is not connected right now.");
+        return;
+    }
+
+    // You would need to implement device status tracking in your system
+    conv.ask(`I'm sorry, I can't check the status of the ${devicename} yet.`);
+});
 
 // Fan control endpoint
 app.post('/api/device/fan', (req, res) => {
